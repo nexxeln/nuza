@@ -5,6 +5,12 @@ import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
+
+interface FilePayload {
+  path: string;
+  content: string;
+}
 
 function App() {
   const [value, setValue] = useState<string>("");
@@ -15,35 +21,27 @@ function App() {
   const now = new Date().toLocaleString();
 
   const handleLoad = async () => {
-    const selected = await open({
-      multiple: false,
-      filters: [
-        {
-          name: "Markdown Files",
-          extensions: ["md", "markdown"],
-        },
-      ],
-    });
-    if (selected) {
-      const cotent = await readTextFile(selected as string);
-      setCurrentFile(selected as string);
-      setValue(cotent);
+    try {
+      // invoke resut command for picking and reading the file
+      const result = await invoke<FilePayload | null>("load_file_picker");
+      if (result) {
+        setCurrentFile(result.path);
+        setValue(result.content);
+      }
+    } catch (error) {
+      console.error("Failed to load file:", error);
     }
   };
 
   const handleSave = async () => {
-    const selected = await save({
-      filters: [
-        {
-          name: "Markdown Files",
-          extensions: ["md", "markdown"],
-        },
-      ],
-      defaultPath: "untitled.md",
-    });
-    if (selected) {
-      await writeTextFile(selected as string, value);
-      setCurrentFile(selected as string);
+    try {
+      // invoke rust command for deciding save target and writing state
+      const savedPath = await invoke<string | null>("save_file_picker", {
+        content: value,
+      });
+      if (savedPath) setCurrentFile(savedPath);
+    } catch (error) {
+      console.error("Failed to save file:", error);
     }
   };
 
