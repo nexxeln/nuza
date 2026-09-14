@@ -19,7 +19,7 @@
         "titleBarStyle": "Overlay",
         "trafficLightPosition": {
           "x": 16,
-          "y": 25
+          "y": 27
         },
         "transparent": true,
         "resizable": true

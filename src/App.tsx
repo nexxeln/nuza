@@ -109,7 +109,7 @@ function App() {
           }}
         />
       </div>
-      <div className="bg-[#1E1E1E] flex items-center justify-between font-bold">
+      <div className="bg-[#1E1E1E] flex items-center justify-between font-bold font-mono">
         {mode === "insert" ? (
           <span className="text-xs uppercase px-4 py-1 bg-[#96FF96] text-black w-fit">
             --{mode}--
