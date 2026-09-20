@@ -4,8 +4,9 @@ import { getCM, vim, Vim } from "@replit/codemirror-vim";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { invoke } from "@tauri-apps/api/core";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, Save } from "lucide-react";
 import Sidebar from "./components/Sidebar";
+import { FileEntry } from "./lib/types";
 interface FilePayload {
   path: string;
   content: string;
@@ -15,7 +16,8 @@ function App() {
   const [value, setValue] = useState<string>("");
   const [currentFile, setCurrentFile] = useState<string>("untitled.md");
   const [mode, setMode] = useState<string>("normal");
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [folderData, setFolderData] = useState<FileEntry[]>([]);
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const now = new Date().toLocaleString();
@@ -30,6 +32,18 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to load file:", error);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    try {
+      const result = await invoke<FileEntry[] | null>("load_folder_picker");
+      if (result) {
+        setFolderData(result);
+        setIsSidebarOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to load folder:", error);
     }
   };
 
@@ -53,12 +67,6 @@ function App() {
       >
         {/* Left side - after traffic lights */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <PanelLeft size={18} />
-          </button>
           <span className="text-sm font-bold text-gray-400">nuza</span>
         </div>
 
@@ -66,23 +74,25 @@ function App() {
         <div className="flex items-center gap-3">
           <button
             data-tauri-drag-region="false"
-            className="text-sm text-gray-400 hover:text-white"
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white cursor-pointer transition-colors"
             onClick={handleSave}
           >
-            Save
+            <Save size={14} />
+            <span>Save</span>
           </button>
-          <button
-            data-tauri-drag-region="false"
-            className="text-sm text-gray-400 hover:text-white"
-            onClick={handleLoad}
-          >
-            Open
-          </button>
+
+          <div className="border-l border-zinc-700 pl-3 flex items-center h-4">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="text-gray-400 hover:text-white transition-colors translate-y-[1px] cursor-pointer" 
+            >
+              <PanelLeft size={18} />
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="flex-1 min-h-0 px-4 flex gap-5 w-full overflow-hidden">
-        {isSidebarOpen && <Sidebar />}
         <div className="flex-1 min-w-0 h-full overflow-hidden">
           <CodeMirror
             ref={editorRef}
@@ -115,6 +125,7 @@ function App() {
             }}
           />
         </div>
+        {isSidebarOpen && <Sidebar data={folderData} onOpenFolder={handleOpenFolder} />}
       </div>
       <div className="bg-[#1E1E1E] flex items-center justify-between font-bold font-mono">
         {mode === "insert" ? (

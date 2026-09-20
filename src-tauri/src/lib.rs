@@ -4,17 +4,59 @@ use tauri::Manager;
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 use std::fs;
 use tauri_plugin_dialog::DialogExt;
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use std::path::Path;
 
 #[derive(serde::Serialize)]
 struct FilePayload {
     path: String, 
     content: String,
 }
+#[derive(serde::Serialize)]
+struct FileEntry {
+    name: String, 
+    path: String,
+    #[serde(rename = "isDirectory")] // this ensures the JSON key is camel case
+    is_directory: bool,
+    children: Option<Vec<FileEntry>>,
+}
+
+fn read_dir_recursive(path: &Path) -> Result<Vec<FileEntry>, String> {
+    let mut entries = Vec::new();
+    
+    if path.is_dir() {
+        // Read the directory contents
+        for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let entry_path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let is_directory = entry_path.is_dir();
+            
+            // If it's a directory, recursively read its children
+            let children = if is_directory {
+                Some(read_dir_recursive(&entry_path)?)
+            } else {
+                None
+            };
+            
+            entries.push(FileEntry {
+                name,
+                path: entry_path.to_string_lossy().into_owned(),
+                is_directory,
+                children,
+            });
+        }
+    }
+    
+    // Sort so directories appear first, then alphabetically
+    entries.sort_by(|a, b| {
+        b.is_directory.cmp(&a.is_directory)
+            .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    
+    Ok(entries)
+}
+
+
 
 #[tauri::command]
 async fn load_file_picker(app_handle: tauri::AppHandle) -> Result<Option<FilePayload>, String> {
@@ -38,6 +80,26 @@ async fn load_file_picker(app_handle: tauri::AppHandle) -> Result<Option<FilePay
         });
 
     // await the dialog result from the picker thread 
+    rx.recv().map_err(|e| format!("Channel error: {}", e))?
+}
+
+#[tauri::command]
+async fn load_folder_picker(app_handle: tauri::AppHandle) -> Result<Option<Vec<FileEntry>>, String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    app_handle.dialog().file()
+        .pick_folder(move |folder_path| {
+            let result = match folder_path {
+                Some(path) => {
+                    let path_str = path.to_string();
+                    // Call our recursive function on the selected folder
+                    read_dir_recursive(Path::new(&path_str)).map(Some)
+                }
+                None => Ok(None),
+            };
+            let _ = tx.send(result);
+        });
+
     rx.recv().map_err(|e| format!("Channel error: {}", e))?
 }
 
@@ -67,8 +129,6 @@ async fn save_file_picker(app_handle: tauri::AppHandle, content: String) -> Resu
     rx.recv().map_err(|e| format!("Channel error: {}", e))?
 }
 
-
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -84,7 +144,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, load_file_picker, save_file_picker])
+        .invoke_handler(tauri::generate_handler![load_file_picker, save_file_picker, load_folder_picker])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
