@@ -3,10 +3,9 @@ import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { getCM, vim, Vim } from "@replit/codemirror-vim";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
-
+import { PanelLeft } from "lucide-react";
+import Sidebar from "./components/Sidebar";
 interface FilePayload {
   path: string;
   content: string;
@@ -16,6 +15,7 @@ function App() {
   const [value, setValue] = useState<string>("");
   const [currentFile, setCurrentFile] = useState<string>("untitled.md");
   const [mode, setMode] = useState<string>("normal");
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const now = new Date().toLocaleString();
@@ -53,6 +53,12 @@ function App() {
       >
         {/* Left side - after traffic lights */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <PanelLeft size={18} />
+          </button>
           <span className="text-sm font-bold text-gray-400">nuza</span>
         </div>
 
@@ -75,37 +81,40 @@ function App() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 px-4">
-        <CodeMirror
-          ref={editorRef}
-          value={value}
-          height="100%"
-          theme={oneDark}
-          extensions={[markdown(), vim()]}
-          onChange={(value) => setValue(value)}
-          className="h-full text-xl border-none outline-none"
-          basicSetup={{
-            lineNumbers: true,
-            foldGutter: false,
-            highlightActiveLine: true,
-          }}
-          onCreateEditor={(view) => {
-            const cm = getCM(view);
-            if (!cm) return;
-            // @ts-ignore
-            cm.on("vim-mode-change", (e) => {
-              setMode(e.mode);
-            });
+      <div className="flex-1 min-h-0 px-4 flex gap-5 w-full overflow-hidden">
+        {isSidebarOpen && <Sidebar />}
+        <div className="flex-1 min-w-0 h-full overflow-hidden">
+          <CodeMirror
+            ref={editorRef}
+            value={value}
+            height="100%"
+            theme={oneDark}
+            extensions={[markdown(), vim()]}
+            onChange={(value) => setValue(value)}
+            className="h-full text-xl border-none outline-none"
+            basicSetup={{
+              lineNumbers: true,
+              foldGutter: false,
+              highlightActiveLine: true,
+            }}
+            onCreateEditor={(view) => {
+              const cm = getCM(view);
+              if (!cm) return;
+              // @ts-ignore
+              cm.on("vim-mode-change", (e) => {
+                setMode(e.mode);
+              });
 
-            Vim.defineEx("write", "w", async () => {
-              await handleSave();
-            });
+              Vim.defineEx("write", "w", async () => {
+                await handleSave();
+              });
 
-            Vim.defineEx("wall", "wa", async () => {
-              await handleSave();
-            });
-          }}
-        />
+              Vim.defineEx("wall", "wa", async () => {
+                await handleSave();
+              });
+            }}
+          />
+        </div>
       </div>
       <div className="bg-[#1E1E1E] flex items-center justify-between font-bold font-mono">
         {mode === "insert" ? (
