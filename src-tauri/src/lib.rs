@@ -129,6 +129,16 @@ async fn save_file_picker(app_handle: tauri::AppHandle, content: String) -> Resu
     rx.recv().map_err(|e| format!("Channel error: {}", e))?
 }
 
+#[tauri::command]
+fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn write_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -144,7 +154,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![load_file_picker, save_file_picker, load_folder_picker])
+        .invoke_handler(tauri::generate_handler![load_file_picker, save_file_picker, load_folder_picker, read_file, write_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

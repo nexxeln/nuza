@@ -3,14 +3,11 @@ import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { getCM, vim, Vim } from "@replit/codemirror-vim";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { PanelLeft, Save } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import { FileEntry } from "./lib/types";
-interface FilePayload {
-  path: string;
-  content: string;
-}
 
 function App() {
   const [value, setValue] = useState<string>("");
@@ -22,18 +19,11 @@ function App() {
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const now = new Date().toLocaleString();
 
-  const handleLoad = async () => {
-    try {
-      // invoke resut command for picking and reading the file
-      const result = await invoke<FilePayload | null>("load_file_picker");
-      if (result) {
-        setCurrentFile(result.path);
-        setValue(result.content);
-      }
-    } catch (error) {
-      console.error("Failed to load file:", error);
-    }
-  };
+  // Refs to always access the latest state inside the Vim closure
+  const valueRef = useRef(value);
+  const currentFileRef = useRef(currentFile);
+  valueRef.current = value;
+  currentFileRef.current = currentFile;
 
   const handleOpenFolder = async () => {
     try {
@@ -49,18 +39,36 @@ function App() {
 
   const handleSave = async () => {
     try {
-      // invoke rust command for deciding save target and writing state
-      const savedPath = await invoke<string | null>("save_file_picker", {
-        content: value,
-      });
-      if (savedPath) setCurrentFile(savedPath);
+      const currentFileValue = currentFileRef.current;
+      const contentValue = valueRef.current;
+
+      if (currentFileValue !== "untitled.md") {
+        // Direct save if we already have a real file path
+        await invoke("write_file", { path: currentFileValue, content: contentValue });
+      } else {
+        // Otherwise, open the picker for a new file
+        const savedPath = await invoke<string | null>("save_file_picker", {
+          content: contentValue,
+        });
+        if (savedPath) setCurrentFile(savedPath);
+      }
     } catch (error) {
       console.error("Failed to save file:", error);
     }
   };
 
+  const handleFileSelect = async (path: string) => {
+    try {
+      const content = await invoke<string>("read_file", { path });
+      setValue(content);
+      setCurrentFile(path);
+    } catch (error) {
+      console.error("Failed to read file:", error);
+    }
+  }
+
   return (
-    <main className="h-screen flex flex-col text-white bg-transparent">
+    <main className="h-screen flex flex-col text-white bg-transparent overflow-hidden">
       <header
         data-tauri-drag-region
         className="h-12 shrink-0 flex items-center justify-between px-4 pl-24"
@@ -92,16 +100,16 @@ function App() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 px-4 flex gap-5 w-full overflow-hidden">
-        <div className="flex-1 min-w-0 h-full overflow-hidden">
+      <div className="flex-1 min-h-0 px-4 flex gap-5 w-full relative z-20">
+        <div className="flex-1 min-w-0 h-full relative">
           <CodeMirror
             ref={editorRef}
             value={value}
             height="100%"
             theme={oneDark}
-            extensions={[markdown(), vim()]}
+            extensions={[markdown(), vim(), EditorView.lineWrapping]}
             onChange={(value) => setValue(value)}
-            className="h-full text-lg border-none outline-none"
+            className="h-full text-sm border-none outline-none"
             basicSetup={{
               lineNumbers: true,
               foldGutter: false,
@@ -125,25 +133,25 @@ function App() {
             }}
           />
         </div>
-        {isSidebarOpen && <Sidebar data={folderData} onOpenFolder={handleOpenFolder} />}
+        {isSidebarOpen && <Sidebar data={folderData} onOpenFolder={handleOpenFolder} onFileSelect={handleFileSelect} />}
       </div>
-      <div className="bg-[#1E1E1E] flex items-center justify-between font-bold font-mono">
+      <div className="bg-[#1E1E1E] flex items-center justify-between font-bold font-mono shrink-0 h-7 relative z-10">
         {mode === "insert" ? (
-          <span className="text-xs uppercase px-4 py-1 bg-[#96FF96] text-black w-fit">
+          <span className="text-xs uppercase px-4 h-full flex items-center bg-[#96FF96] text-black w-fit">
             --{mode}--
           </span>
         ) : mode === "normal" ? (
-          <span className="text-xs uppercase px-4 py-1 bg-[#9696FF] text-black w-fit">
+          <span className="text-xs uppercase px-4 h-full flex items-center bg-[#9696FF] text-black w-fit">
             --{mode}--
           </span>
         ) : mode === "visual" ? (
-          <span className="text-xs uppercase px-4 py-1 bg-[#FFFF96] text-black w-fit">
+          <span className="text-xs uppercase px-4 h-full flex items-center bg-[#FFFF96] text-black w-fit">
             --{mode}--
           </span>
         ) : null}
-        <span className="font-light text-xs text-gray-400 flex items-center gap-2">
+        <span className="font-light text-xs text-gray-400 flex items-center gap-2 h-full">
           {currentFile.split("/").pop() || "untitled.md"}
-          <span className="text-xs font-medium uppercase px-4 py-1 bg-[#FF9696] text-black w-fit">
+          <span className="text-xs font-medium uppercase px-4 h-full flex items-center bg-[#FF9696] text-black w-fit ml-2">
             {now}
           </span>
         </span>

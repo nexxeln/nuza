@@ -39,17 +39,17 @@ body,
 
 .cm-vim-panel {
   position: fixed !important;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   z-index: 50;
 
   background-color: #1E1E1E !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   font-weight: bold !important;
   
-  height: 25px !important;
-  min-height: 24px !important;
+  height: 28px !important;
+  min-height: 28px !important;
   padding: 0 16px !important;
 
   display: flex !important;
