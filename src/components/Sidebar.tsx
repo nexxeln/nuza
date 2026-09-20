@@ -2,7 +2,7 @@ import { ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { FileIcon } from "../lib/utils"; import { fakeData } from "../lib/consts";
 export default function Sidebar() {
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-zinc-800 text-zinc-300">
+    <aside className="flex h-full w-54 shrink-0 flex-col border-r border-zinc-800 text-zinc-300">
       <div className="px-4">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
           Explorer

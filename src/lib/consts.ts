@@ -7,6 +7,11 @@ export var fakeData: FileEntry[] = [
     isDirectory: true,
     children: [
       {
+        name: "README.md",
+        path: "/src/README.md",
+        isDirectory: false,
+      },
+      {
         name: "index.tsx",
         path: "/src/index.tsx",
         isDirectory: false,

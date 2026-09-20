@@ -37,6 +37,36 @@ body,
   min-height: 100% !important;
 }
 
+.cm-vim-panel {
+  position: fixed !important;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+
+  background-color: #1E1E1E !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: bold !important;
+  
+  height: 25px !important;
+  min-height: 24px !important;
+  padding: 0 16px !important;
+
+  display: flex !important;
+  align-items: center !important;
+}
+
+.cm-vim-panel input {
+  background: transparent !important;
+  color: #A1A1AA !important; /* text-gray-400 */
+  border: none !important;
+  outline: none !important;
+  font-family: inherit !important;
+  font-weight: bold !important;
+  width: 100%;
+  margin-left: 4px;
+}
+
 :root {
   font-family: "Inter", sans-serif;
   font-size: 16px;

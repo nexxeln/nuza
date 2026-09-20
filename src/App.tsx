@@ -91,7 +91,7 @@ function App() {
             theme={oneDark}
             extensions={[markdown(), vim()]}
             onChange={(value) => setValue(value)}
-            className="h-full text-xl border-none outline-none"
+            className="h-full text-lg border-none outline-none"
             basicSetup={{
               lineNumbers: true,
               foldGutter: false,
