@@ -1,6 +1,8 @@
 # nuza
 
-nuza is a better "obsidian" alternative that is lightweight, better and fully opensource  
+**nuza** is a lightning-fast, privacy-first, and fully open-source alternative to Obsidian. Built natively with Tauri and React, it delivers a deeply integrated desktop experience that stays out of your way. 
+
+Featuring a beautifully minimalist UI, native Vim keybindings out of the box, and a strictly local file-system approach, **nuza** is designed for developers and writers who demand absolute control over their notes without the bloat.
 
 ## Local Setup
 
