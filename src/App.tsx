@@ -150,7 +150,7 @@ function App() {
           </span>
         ) : null}
         <span className="font-light text-xs text-gray-400 flex items-center gap-2 h-full">
-          {currentFile.split("/").pop() || "untitled.md"}
+          {currentFile.split(/[/\\]/).pop() || "untitled.md"}
           <span className="text-xs font-medium uppercase px-4 h-full flex items-center bg-[#FF9696] text-black w-fit ml-2">
             {now}
           </span>

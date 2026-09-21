@@ -1,7 +1,10 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 use tauri::Manager;
+#[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+#[cfg(target_os = "windows")]
+use window_vibrancy::apply_blur;
 use std::fs;
 use tauri_plugin_dialog::DialogExt;
 use std::path::Path;
