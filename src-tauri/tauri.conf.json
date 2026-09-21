@@ -39,5 +39,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://nuza-update.puang.in/updater.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlDODExMTU1RDEwRDY1ODYKUldTR1pRM1JWUkdCbk1tSzRibUJoeU83dC9OeTRDc3ZQQnFzVEJ2b21FT0VxelFvemoxTXZHVWUK"
+    }
   }
 }

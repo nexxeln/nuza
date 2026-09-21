@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { getCM, vim, Vim } from "@replit/codemirror-vim";
-import { markdown } from "@codemirror/lang-markdown";
+import { getCM, vim, Vim } from "@replit/codemirror-vim"; import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
-import { PanelLeft, Save } from "lucide-react";
+import { check } from "@tauri-apps/plugin-updater";
+import { PanelLeft, Save, RefreshCw } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import { FileEntry } from "./lib/types";
 
@@ -15,6 +15,7 @@ function App() {
   const [mode, setMode] = useState<string>("normal");
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [folderData, setFolderData] = useState<FileEntry[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const now = new Date().toLocaleString();
@@ -34,6 +35,22 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to load folder:", error);
+    }
+  };
+
+  const handleUpdateCheck = async () => {
+    try {
+      setIsUpdating(true);
+      const update = await check();
+      if (update) {
+        await update.downloadAndInstall();
+      } else {
+        console.log("No updates available");
+      }
+    } catch (error) {
+      console.error("Failed to update:", error);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -80,6 +97,16 @@ function App() {
 
         {/* Right side - actions */}
         <div className="flex items-center gap-3">
+          <button
+            data-tauri-drag-region="false"
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white cursor-pointer transition-colors"
+            onClick={handleUpdateCheck}
+            disabled={isUpdating}
+          >
+            <RefreshCw size={14} className={isUpdating ? "animate-spin" : ""} />
+            <span>{isUpdating ? "Updating..." : "Update"}</span>
+          </button>
+          
           <button
             data-tauri-drag-region="false"
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white cursor-pointer transition-colors"
