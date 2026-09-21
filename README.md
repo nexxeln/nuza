@@ -1,7 +1,32 @@
-# Tauri + React + Typescript
+# nuza
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+nuza is a better "obsidian" alternative that is lightweight, better and fully opensource  
 
-## Recommended IDE Setup
+## Local Setup
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+1. Clone the repository and navigate into the project directory.
+
+2. Install dependencies:
+   ```sh
+   bun install
+   ```
+
+3. Run the development server:
+   ```sh
+   bun run tauri dev
+   ```
+
+## Build
+
+To build the native application for your operating system:
+```sh
+bun run tauri build
+```
+
+## Contributing
+
+If you're interested in contributing to nuza, please read our [contributing docs](CONTRIBUTING.md) before submitting a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
