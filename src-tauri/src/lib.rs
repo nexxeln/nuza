@@ -155,6 +155,10 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             apply_vibrancy(&window, NSVisualEffectMaterial::Sidebar, None, None)
                 .expect("Unsupported platform!");
+
+            #[cfg(target_os = "windows")]
+            apply_blur(&window, Some((18, 18, 18, 125)))
+                .expect("Unsupported platform!");
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
