@@ -74,11 +74,11 @@ jobs:
           echo "Waiting for GitHub release assets to be fully published..."
           sleep 20
           
-          # Fetch the package version
-          VERSION=$(jq -r .version package.json)
+          # Fetch the app version (tauri.conf.json is authoritative for the release tag)
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           TAG_NAME="app-v$VERSION"
-          
-          gh release download $TAG_NAME -p "latest.json" -O public/updater.json || echo "Failed to download latest.json"
+
+          gh release download "$TAG_NAME" -p "latest.json" -O public/updater.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
