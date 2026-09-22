@@ -73,11 +73,41 @@ body,
   margin-left: 4px;
 }
 
+/*
+ * shadcn/base-ui components (e.g. Switch) style themselves entirely off
+ * these CSS variables via the @theme mapping below - without both, utility
+ * classes like `bg-primary` / `bg-input` resolve to nothing and the
+ * component renders invisibly.
+ */
+:root {
+  --background: #1e1e1e;
+  --foreground: #e4e4e7;
+  --primary: #9696ff;
+  --primary-foreground: #0f0f0f;
+  --destructive: #ff9696;
+  --destructive-foreground: #0f0f0f;
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: rgba(150, 150, 255, 0.5);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
 :root {
   font-family: "Inter", sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
+
+  isolation: isolate;
 
   color: #0f0f0f;
   /* background-color: #121211; */
