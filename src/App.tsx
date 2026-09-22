@@ -113,7 +113,7 @@ function App() {
       "toggle-sidebar": () => setIsSidebarOpen((open) => !open),
       "save-file": handleSave,
       "open-folder": handleOpenFolder,
-      "open-settings": () => setIsSettingsOpen(true),
+      "open-settings": () => setIsSettingsOpen((open) => !open),
       "toggle-vim-mode": () => setVimEnabled((enabled) => !enabled),
       "check-updates": handleUpdateCheck,
     }),
