@@ -2,9 +2,9 @@
 
 use tauri::Manager;
 #[cfg(target_os = "macos")]
-use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+use window_vibrancy::{apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial};
 #[cfg(target_os = "windows")]
-use window_vibrancy::apply_blur;
+use window_vibrancy::{apply_blur, clear_blur};
 use std::fs;
 use tauri_plugin_dialog::DialogExt;
 use std::path::Path;
@@ -142,6 +142,38 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
+/// Toggles the OS-level window transparency/vibrancy effect.
+/// No-op on platforms window-vibrancy doesn't support (e.g. Linux); the
+/// frontend falls back to a plain opaque background there via CSS.
+#[tauri::command]
+fn set_transparency(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        if enabled {
+            apply_vibrancy(&window, NSVisualEffectMaterial::Sidebar, None, None)
+                .map_err(|e| e.to_string())?;
+        } else {
+            clear_vibrancy(&window).map_err(|e| e.to_string())?;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if enabled {
+            apply_blur(&window, Some((18, 18, 18, 125))).map_err(|e| e.to_string())?;
+        } else {
+            clear_blur(&window).map_err(|e| e.to_string())?;
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = (&window, enabled);
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -162,7 +194,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![load_file_picker, save_file_picker, load_folder_picker, read_file, write_file])
+        .invoke_handler(tauri::generate_handler![load_file_picker, save_file_picker, load_folder_picker, read_file, write_file, set_transparency])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
