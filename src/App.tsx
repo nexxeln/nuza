@@ -13,6 +13,7 @@ import { useKeymaps, useKeymapListener } from "./hooks/useKeymaps";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { usePersistedState } from "./hooks/usePersistedState";
+import { DEFAULT_EDITOR_FONT, editorFontFamily } from "./lib/fonts";
 
 function App() {
   const [mode, setMode] = useState<string>("normal");
@@ -20,6 +21,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [vimEnabled, setVimEnabled] = usePersistedState("vimEnabled", true);
   const [transparencyEnabled, setTransparencyEnabled] = usePersistedState("transparencyEnabled", true);
+  const [editorFont, setEditorFont] = usePersistedState("editorFont", DEFAULT_EDITOR_FONT);
 
   const {
     value,
@@ -46,6 +48,11 @@ function App() {
       console.error("Failed to update transparency:", error);
     });
   }, [transparencyEnabled]);
+
+  const editorFontTheme = useMemo(
+    () => EditorView.theme({ ".cm-scroller": { fontFamily: editorFontFamily(editorFont) } }),
+    [editorFont]
+  );
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const now = new Date().toLocaleString();
@@ -99,7 +106,7 @@ function App() {
             value={value}
             height="100%"
             theme={oneDark}
-            extensions={[markdown(), ...(vimEnabled ? [vim()] : []), EditorView.lineWrapping]}
+            extensions={[markdown(), ...(vimEnabled ? [vim()] : []), EditorView.lineWrapping, editorFontTheme]}
             onChange={setValue}
             className="h-full text-sm border-none outline-none"
             basicSetup={{
@@ -135,6 +142,8 @@ function App() {
         setVimEnabled={setVimEnabled}
         transparencyEnabled={transparencyEnabled}
         setTransparencyEnabled={setTransparencyEnabled}
+        editorFont={editorFont}
+        setEditorFont={setEditorFont}
         keymapBindings={keymapBindings}
         setKeymapBinding={setKeymapBinding}
         resetKeymapBinding={resetKeymapBinding}

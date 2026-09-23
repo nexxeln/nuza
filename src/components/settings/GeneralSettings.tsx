@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { isMacPlatform } from "@/lib/platform";
+import { DEFAULT_EDITOR_FONT, listSystemFonts } from "@/lib/fonts";
 import SettingRow from "./SettingRow";
 
 interface GeneralSettingsProps {
@@ -7,6 +9,8 @@ interface GeneralSettingsProps {
   setVimEnabled: (enabled: boolean) => void;
   transparencyEnabled: boolean;
   setTransparencyEnabled: (enabled: boolean) => void;
+  editorFont: string;
+  setEditorFont: (font: string) => void;
 }
 
 export default function GeneralSettings({
@@ -14,7 +18,17 @@ export default function GeneralSettings({
   setVimEnabled,
   transparencyEnabled,
   setTransparencyEnabled,
+  editorFont,
+  setEditorFont,
 }: GeneralSettingsProps) {
+  const [fonts, setFonts] = useState<string[]>([]);
+
+  useEffect(() => {
+    listSystemFonts()
+      .then(setFonts)
+      .catch((error) => console.error("Failed to list system fonts:", error));
+  }, []);
+
   const vibrancyLabel = isMacPlatform() ? "macOS vibrancy" : "window blur, where supported";
 
   return (
@@ -28,6 +42,23 @@ export default function GeneralSettings({
         description={`Use a translucent window background (${vibrancyLabel})`}
       >
         <Switch checked={transparencyEnabled} onCheckedChange={setTransparencyEnabled} />
+      </SettingRow>
+
+      <SettingRow title="Font" description="Use any font installed on your system in the editor">
+        <select
+          value={editorFont}
+          onChange={(e) => setEditorFont(e.target.value)}
+          className="max-w-48 bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-xs text-white outline-none focus-visible:border-[#FF9696] cursor-pointer"
+        >
+          <option value={DEFAULT_EDITOR_FONT}>Default</option>
+          {/* Keep a saved font selectable even if it's no longer installed. */}
+          {editorFont && !fonts.includes(editorFont) && <option value={editorFont}>{editorFont}</option>}
+          {fonts.map((font) => (
+            <option key={font} value={font}>
+              {font}
+            </option>
+          ))}
+        </select>
       </SettingRow>
     </div>
   );
