@@ -10,11 +10,6 @@ use tauri_plugin_dialog::DialogExt;
 use std::path::Path;
 
 #[derive(serde::Serialize)]
-struct FilePayload {
-    path: String, 
-    content: String,
-}
-#[derive(serde::Serialize)]
 struct FileEntry {
     name: String, 
     path: String,
@@ -59,77 +54,58 @@ fn read_dir_recursive(path: &Path) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
-
-
-#[tauri::command]
-async fn load_file_picker(app_handle: tauri::AppHandle) -> Result<Option<FilePayload>, String> {
+/// Tauri's dialog pickers deliver their result via a callback fired from a
+/// separate thread, but a `#[tauri::command]` needs to return a value - this
+/// blocks the async command on a channel until that callback runs.
+fn block_on_picker<T, F>(register: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce(Box<dyn FnOnce(Result<T, String>) + Send>),
+{
     let (tx, rx) = std::sync::mpsc::channel();
-
-    // Open native open dialog using the Dialog plugin channel
-    app_handle.dialog().file()
-        .add_filter("Markdown Files", &["md", "markdown"])
-        .pick_file(move |file_path| {
-            let result = match file_path {
-                Some(path) => {
-                    let path_str = path.to_string();
-                    match fs::read_to_string(&path_str) {
-                        Ok(content) => Ok(Some(FilePayload { path: path_str, content })),
-                        Err(e) => Err(format!("Failed to read file: {}", e)),
-                    }
-                }
-                None => Ok(None), // User canceled the dialog
-            };
-            let _ = tx.send(result);
-        });
-
-    // await the dialog result from the picker thread 
+    register(Box::new(move |result| {
+        let _ = tx.send(result);
+    }));
     rx.recv().map_err(|e| format!("Channel error: {}", e))?
 }
 
+/// Opens a native "open folder" dialog and returns the folder's contents as a
+/// tree, read recursively. Returns `None` if the user cancels the dialog.
 #[tauri::command]
 async fn load_folder_picker(app_handle: tauri::AppHandle) -> Result<Option<Vec<FileEntry>>, String> {
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    app_handle.dialog().file()
-        .pick_folder(move |folder_path| {
+    block_on_picker(|send| {
+        app_handle.dialog().file().pick_folder(move |folder_path| {
             let result = match folder_path {
-                Some(path) => {
-                    let path_str = path.to_string();
-                    // Call our recursive function on the selected folder
-                    read_dir_recursive(Path::new(&path_str)).map(Some)
-                }
+                Some(path) => read_dir_recursive(Path::new(&path.to_string())).map(Some),
                 None => Ok(None),
             };
-            let _ = tx.send(result);
+            send(result);
         });
-
-    rx.recv().map_err(|e| format!("Channel error: {}", e))?
+    })
 }
 
+/// Opens a native "save file" dialog and writes `content` to the chosen path.
+/// Returns the chosen path, or `None` if the user cancels the dialog.
 #[tauri::command]
 async fn save_file_picker(app_handle: tauri::AppHandle, content: String) -> Result<Option<String>, String> {
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    // Open native save dialog
-    app_handle.dialog().file()
-        .add_filter("Markdown Files", &["md", "markdown"])
-        .set_file_name("untitled.md")
-        .save_file(move |file_path| {
-            let result = match file_path {
-                Some(path) => {
-                    let path_str = path.to_string();
-                    match fs::write(&path_str, &content) {
-                        Ok(_) => Ok(Some(path_str)), 
-                        Err(e) => Err(format!("Failed to write file: {}", e)),
+    block_on_picker(|send| {
+        app_handle.dialog().file()
+            .add_filter("Markdown Files", &["md", "markdown"])
+            .set_file_name("untitled.md")
+            .save_file(move |file_path| {
+                let result = match file_path {
+                    Some(path) => {
+                        let path_str = path.to_string();
+                        match fs::write(&path_str, &content) {
+                            Ok(_) => Ok(Some(path_str)),
+                            Err(e) => Err(format!("Failed to write file: {}", e)),
+                        }
                     }
-                }
-                None => Ok(None),
-            };
-            let _ = tx.send(result);
-        });
-
-    // await the dialog result from the picker thread
-    rx.recv().map_err(|e| format!("Channel error: {}", e))?
+                    None => Ok(None),
+                };
+                send(result);
+            });
+    })
 }
 
 #[tauri::command]
@@ -142,36 +118,42 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
-/// Toggles the OS-level window transparency/vibrancy effect.
+/// Applies or clears the OS-level window transparency/vibrancy effect.
 /// No-op on platforms window-vibrancy doesn't support (e.g. Linux); the
 /// frontend falls back to a plain opaque background there via CSS.
-#[tauri::command]
-fn set_transparency(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+fn apply_transparency(window: &tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         if enabled {
-            apply_vibrancy(&window, NSVisualEffectMaterial::Sidebar, None, None)
+            apply_vibrancy(window, NSVisualEffectMaterial::Sidebar, None, None)
                 .map_err(|e| e.to_string())?;
         } else {
-            clear_vibrancy(&window).map_err(|e| e.to_string())?;
+            clear_vibrancy(window).map_err(|e| e.to_string())?;
         }
     }
 
     #[cfg(target_os = "windows")]
     {
         if enabled {
-            apply_blur(&window, Some((18, 18, 18, 125))).map_err(|e| e.to_string())?;
+            apply_blur(window, Some((18, 18, 18, 125))).map_err(|e| e.to_string())?;
         } else {
-            clear_blur(&window).map_err(|e| e.to_string())?;
+            clear_blur(window).map_err(|e| e.to_string())?;
         }
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        let _ = (&window, enabled);
+        let _ = (window, enabled);
     }
 
     Ok(())
+}
+
+/// Tauri command wrapper around [`apply_transparency`] for toggling the
+/// effect at runtime from the frontend's settings panel.
+#[tauri::command]
+fn set_transparency(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    apply_transparency(&window, enabled)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -182,19 +164,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
-
-            // apply the macOS vibrancy effect to the window
-            #[cfg(target_os = "macos")]
-            apply_vibrancy(&window, NSVisualEffectMaterial::Sidebar, None, None)
-                .expect("Unsupported platform!");
-
-            #[cfg(target_os = "windows")]
-            apply_blur(&window, Some((18, 18, 18, 125)))
-                .expect("Unsupported platform!");
+            apply_transparency(&window, true).expect("Unsupported platform!");
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![load_file_picker, save_file_picker, load_folder_picker, read_file, write_file, set_transparency])
+        .invoke_handler(tauri::generate_handler![save_file_picker, load_folder_picker, read_file, write_file, set_transparency])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
