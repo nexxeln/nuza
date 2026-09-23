@@ -69,19 +69,101 @@ where
     rx.recv().map_err(|e| format!("Channel error: {}", e))?
 }
 
-/// Opens a native "open folder" dialog and returns the folder's contents as a
-/// tree, read recursively. Returns `None` if the user cancels the dialog.
+#[derive(serde::Serialize)]
+struct OpenedFolder {
+    path: String,
+    entries: Vec<FileEntry>,
+}
+
+/// Opens a native "open folder" dialog and returns the folder's path plus its
+/// contents as a tree, read recursively. Returns `None` if the user cancels.
 #[tauri::command]
-async fn load_folder_picker(app_handle: tauri::AppHandle) -> Result<Option<Vec<FileEntry>>, String> {
+async fn load_folder_picker(app_handle: tauri::AppHandle) -> Result<Option<OpenedFolder>, String> {
     block_on_picker(|send| {
         app_handle.dialog().file().pick_folder(move |folder_path| {
             let result = match folder_path {
-                Some(path) => read_dir_recursive(Path::new(&path.to_string())).map(Some),
+                Some(path) => {
+                    let path_str = path.to_string();
+                    read_dir_recursive(Path::new(&path_str))
+                        .map(|entries| Some(OpenedFolder { path: path_str, entries }))
+                }
                 None => Ok(None),
             };
             send(result);
         });
     })
+}
+
+/// Re-reads a previously opened folder's contents, used to refresh the tree
+/// after a create/rename/move/delete without reopening the picker.
+#[tauri::command]
+fn read_folder(path: String) -> Result<Vec<FileEntry>, String> {
+    read_dir_recursive(Path::new(&path))
+}
+
+#[tauri::command]
+fn create_file(parent_path: String, name: String) -> Result<(), String> {
+    let path = Path::new(&parent_path).join(&name);
+    if path.exists() {
+        return Err(format!("\"{}\" already exists", name));
+    }
+    fs::File::create(&path).map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_folder(parent_path: String, name: String) -> Result<(), String> {
+    let path = Path::new(&parent_path).join(&name);
+    if path.exists() {
+        return Err(format!("\"{}\" already exists", name));
+    }
+    fs::create_dir(&path).map_err(|e| e.to_string())
+}
+
+/// Renames a file or folder in place, keeping it in the same parent
+/// directory. Returns the new full path.
+#[tauri::command]
+fn rename_entry(path: String, new_name: String) -> Result<String, String> {
+    let old = Path::new(&path);
+    let parent = old.parent().ok_or_else(|| "Cannot rename this item".to_string())?;
+    let new_path = parent.join(&new_name);
+    if new_path.exists() {
+        return Err(format!("\"{}\" already exists", new_name));
+    }
+    fs::rename(old, &new_path).map_err(|e| e.to_string())?;
+    Ok(new_path.to_string_lossy().into_owned())
+}
+
+/// Moves a file or folder into `target_dir` (e.g. from a drag-and-drop),
+/// keeping its name. Returns the new full path.
+#[tauri::command]
+fn move_entry(path: String, target_dir: String) -> Result<String, String> {
+    let old = Path::new(&path);
+    let name = old
+        .file_name()
+        .ok_or_else(|| "Invalid path".to_string())?
+        .to_owned();
+    let target = Path::new(&target_dir);
+
+    if old.is_dir() && (target == old || target.starts_with(old)) {
+        return Err("Cannot move a folder into itself".to_string());
+    }
+
+    let new_path = target.join(&name);
+    if new_path.exists() {
+        return Err(format!("\"{}\" already exists in destination", name.to_string_lossy()));
+    }
+    fs::rename(old, &new_path).map_err(|e| e.to_string())?;
+    Ok(new_path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn delete_entry(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if p.is_dir() {
+        fs::remove_dir_all(p).map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(p).map_err(|e| e.to_string())
+    }
 }
 
 /// Opens a native "save file" dialog and writes `content` to the chosen path.
@@ -168,7 +250,19 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![save_file_picker, load_folder_picker, read_file, write_file, set_transparency])
+        .invoke_handler(tauri::generate_handler![
+            save_file_picker,
+            load_folder_picker,
+            read_folder,
+            read_file,
+            write_file,
+            create_file,
+            create_folder,
+            rename_entry,
+            move_entry,
+            delete_entry,
+            set_transparency
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

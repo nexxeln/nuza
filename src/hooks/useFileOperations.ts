@@ -9,31 +9,56 @@ interface UseFileOperationsOptions {
   onFolderOpened?: () => void;
 }
 
+interface OpenedFolder {
+  path: string;
+  entries: FileEntry[];
+}
+
+/** True if `path` is `ancestor` itself, or lives somewhere underneath it. */
+function isWithin(path: string, ancestor: string) {
+  return path === ancestor || path.startsWith(ancestor + "/") || path.startsWith(ancestor + "\\");
+}
+
 /** Owns the editor's document state and every Tauri file-system round trip. */
 export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions = {}) {
   const [value, setValue] = useState<string>("");
   const [currentFile, setCurrentFile] = useState<string>(UNTITLED_FILE);
   const [folderData, setFolderData] = useState<FileEntry[]>([]);
+  const [rootPath, setRootPath] = useState<string | null>(null);
 
   // Vim's `:w` command runs outside of React, from a closure captured once
   // when the editor mounts, so it can't see state updates directly - it
   // reads through these refs instead to always get the latest value.
   const valueRef = useRef(value);
   const currentFileRef = useRef(currentFile);
+  const rootPathRef = useRef(rootPath);
   valueRef.current = value;
   currentFileRef.current = currentFile;
+  rootPathRef.current = rootPath;
 
   const openFolder = useCallback(async () => {
     try {
-      const result = await invoke<FileEntry[] | null>("load_folder_picker");
+      const result = await invoke<OpenedFolder | null>("load_folder_picker");
       if (result) {
-        setFolderData(result);
+        setRootPath(result.path);
+        setFolderData(result.entries);
         onFolderOpened?.();
       }
     } catch (error) {
       console.error("Failed to load folder:", error);
     }
   }, [onFolderOpened]);
+
+  const refreshFolder = useCallback(async () => {
+    const path = rootPathRef.current;
+    if (!path) return;
+    try {
+      const entries = await invoke<FileEntry[]>("read_folder", { path });
+      setFolderData(entries);
+    } catch (error) {
+      console.error("Failed to refresh folder:", error);
+    }
+  }, []);
 
   const save = useCallback(async () => {
     try {
@@ -63,5 +88,69 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
     }
   }, []);
 
-  return { value, setValue, currentFile, folderData, openFolder, save, selectFile };
+  const createFile = useCallback(
+    async (parentPath: string, name: string) => {
+      await invoke("create_file", { parentPath, name });
+      await refreshFolder();
+    },
+    [refreshFolder]
+  );
+
+  const createFolder = useCallback(
+    async (parentPath: string, name: string) => {
+      await invoke("create_folder", { parentPath, name });
+      await refreshFolder();
+    },
+    [refreshFolder]
+  );
+
+  const renameEntry = useCallback(
+    async (path: string, newName: string) => {
+      const newPath = await invoke<string>("rename_entry", { path, newName });
+      await refreshFolder();
+      if (isWithin(currentFileRef.current, path)) {
+        setCurrentFile(currentFileRef.current.replace(path, newPath));
+      }
+    },
+    [refreshFolder]
+  );
+
+  const moveEntry = useCallback(
+    async (path: string, targetDir: string) => {
+      const newPath = await invoke<string>("move_entry", { path, targetDir });
+      await refreshFolder();
+      if (isWithin(currentFileRef.current, path)) {
+        setCurrentFile(currentFileRef.current.replace(path, newPath));
+      }
+    },
+    [refreshFolder]
+  );
+
+  const deleteEntry = useCallback(
+    async (path: string) => {
+      await invoke("delete_entry", { path });
+      await refreshFolder();
+      if (isWithin(currentFileRef.current, path)) {
+        setCurrentFile(UNTITLED_FILE);
+        setValue("");
+      }
+    },
+    [refreshFolder]
+  );
+
+  return {
+    value,
+    setValue,
+    currentFile,
+    folderData,
+    rootPath,
+    openFolder,
+    save,
+    selectFile,
+    createFile,
+    createFolder,
+    renameEntry,
+    moveEntry,
+    deleteEntry,
+  };
 }

@@ -21,7 +21,21 @@ function App() {
   const [vimEnabled, setVimEnabled] = usePersistedState("vimEnabled", true);
   const [transparencyEnabled, setTransparencyEnabled] = usePersistedState("transparencyEnabled", true);
 
-  const { value, setValue, currentFile, folderData, openFolder, save, selectFile } = useFileOperations({
+  const {
+    value,
+    setValue,
+    currentFile,
+    folderData,
+    rootPath,
+    openFolder,
+    save,
+    selectFile,
+    createFile,
+    createFolder,
+    renameEntry,
+    moveEntry,
+    deleteEntry,
+  } = useFileOperations({
     onFolderOpened: () => setIsSidebarOpen(true),
   });
   const { isUpdating, checkForUpdates } = useAppUpdater();
@@ -95,7 +109,20 @@ function App() {
             onCreateEditor={handleEditorCreated}
           />
         </div>
-        {isSidebarOpen && <Sidebar data={folderData} onOpenFolder={openFolder} onFileSelect={selectFile} />}
+        {isSidebarOpen && (
+          <Sidebar
+            data={folderData}
+            rootPath={rootPath}
+            onOpenFolder={openFolder}
+            onFileSelect={selectFile}
+            currentFile={currentFile}
+            onCreateFile={createFile}
+            onCreateFolder={createFolder}
+            onRename={renameEntry}
+            onDelete={deleteEntry}
+            onMove={moveEntry}
+          />
+        )}
       </div>
 
       <StatusBar vimEnabled={vimEnabled} mode={mode} currentFile={currentFile} timestamp={now} />
