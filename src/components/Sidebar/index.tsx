@@ -159,7 +159,7 @@ export default function Sidebar({
         </h2>
 
         {hasFolder && (
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5 ml-auto">
             <button
               onClick={() => beginCreate("file")}
               title="New File"

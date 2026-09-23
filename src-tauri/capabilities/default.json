@@ -12,7 +12,9 @@
     "fs:allow-app-write",
     "fs:allow-app-write-recursive",
     "fs:allow-appcache-write",
-    "fs:allow-appcache-write-recursive"
+    "fs:allow-appcache-write-recursive",
+    "updater:default",
+    "process:default"
   ]
 }
 

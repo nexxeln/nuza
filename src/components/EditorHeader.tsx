@@ -2,6 +2,7 @@ import { PanelLeft, RefreshCw, Save, Settings } from "lucide-react";
 
 interface EditorHeaderProps {
   isUpdating: boolean;
+  version: string | null;
   onCheckUpdates: () => void;
   onOpenSettings: () => void;
   onSave: () => void;
@@ -11,6 +12,7 @@ interface EditorHeaderProps {
 /** The draggable title bar: app name on the left, action buttons on the right. */
 export default function EditorHeader({
   isUpdating,
+  version,
   onCheckUpdates,
   onOpenSettings,
   onSave,
@@ -31,8 +33,10 @@ export default function EditorHeader({
           className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white cursor-pointer transition-colors"
           onClick={onCheckUpdates}
           disabled={isUpdating}
+          title="Check for updates"
         >
           <RefreshCw size={14} className={isUpdating ? "animate-spin" : ""} />
+          {version && <span className="text-xs ">v{version}</span>}
         </button>
 
         <button

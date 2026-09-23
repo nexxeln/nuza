@@ -38,7 +38,7 @@ function App() {
   } = useFileOperations({
     onFolderOpened: () => setIsSidebarOpen(true),
   });
-  const { isUpdating, checkForUpdates } = useAppUpdater();
+  const { isUpdating, checkForUpdates, version } = useAppUpdater();
   const { bindings: keymapBindings, setBinding: setKeymapBinding, resetBinding: resetKeymapBinding, resetAll: resetAllKeymaps } = useKeymaps();
 
   useEffect(() => {
@@ -85,6 +85,7 @@ function App() {
     <main className={`h-screen flex flex-col text-white overflow-hidden ${transparencyEnabled ? "bg-transparent" : "bg-[#1E1E1E]"}`}>
       <EditorHeader
         isUpdating={isUpdating}
+        version={version}
         onCheckUpdates={checkForUpdates}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onSave={save}
