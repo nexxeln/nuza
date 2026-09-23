@@ -32,6 +32,8 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
   const valueRef = useRef(value);
   const currentFileRef = useRef(currentFile);
   const rootPathRef = useRef(rootPath);
+  const fileCacheRef = useRef<Record<string, string>>({});
+
   valueRef.current = value;
   currentFileRef.current = currentFile;
   rootPathRef.current = rootPath;
@@ -42,6 +44,11 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
       if (result) {
         setRootPath(result.path);
         setFolderData(result.entries);
+        
+        setCurrentFile(UNTITLED_FILE);
+        setValue("");
+        fileCacheRef.current = {};
+
         onFolderOpened?.();
       }
     } catch (error) {
@@ -71,7 +78,11 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
       } else {
         // Otherwise, open the picker for a new file
         const savedPath = await invoke<string | null>("save_file_picker", { content });
-        if (savedPath) setCurrentFile(savedPath);
+        if (savedPath) {
+          setCurrentFile(savedPath);
+          fileCacheRef.current[savedPath] = content;
+          delete fileCacheRef.current[UNTITLED_FILE];
+        }
       }
     } catch (error) {
       console.error("Failed to save file:", error);
@@ -80,9 +91,19 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
 
   const selectFile = useCallback(async (path: string) => {
     try {
-      const content = await invoke<string>("read_file", { path });
-      setValue(content);
-      setCurrentFile(path);
+      if (currentFileRef.current) {
+        fileCacheRef.current[currentFileRef.current] = valueRef.current;
+      }
+
+      if (path in fileCacheRef.current) {
+        setValue(fileCacheRef.current[path]);
+        setCurrentFile(path);
+      } else {
+        const content = await invoke<string>("read_file", { path });
+        fileCacheRef.current[path] = content;
+        setValue(content)
+        setCurrentFile(path);
+      }
     } catch (error) {
       console.error("Failed to read file:", error);
     }
@@ -108,6 +129,15 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
     async (path: string, newName: string) => {
       const newPath = await invoke<string>("rename_entry", { path, newName });
       await refreshFolder();
+
+      for (const key of Object.keys(fileCacheRef.current)) {
+        if (isWithin(key, path)) {
+          const updatedPath = key.replace(path, newPath);
+          fileCacheRef.current[updatedPath] = fileCacheRef.current[key];
+          delete fileCacheRef.current[key];
+        }
+      }
+
       if (isWithin(currentFileRef.current, path)) {
         setCurrentFile(currentFileRef.current.replace(path, newPath));
       }
@@ -119,6 +149,15 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
     async (path: string, targetDir: string) => {
       const newPath = await invoke<string>("move_entry", { path, targetDir });
       await refreshFolder();
+
+      for (const key of Object.keys(fileCacheRef.current)) {
+        if (isWithin(key, path)) {
+          const updatedPath = key.replace(path, newPath);
+          fileCacheRef.current[updatedPath] = fileCacheRef.current[key];
+          delete fileCacheRef.current[key];
+        }
+      }
+
       if (isWithin(currentFileRef.current, path)) {
         setCurrentFile(currentFileRef.current.replace(path, newPath));
       }
@@ -130,9 +169,16 @@ export function useFileOperations({ onFolderOpened }: UseFileOperationsOptions =
     async (path: string) => {
       await invoke("delete_entry", { path });
       await refreshFolder();
+
+      for (const key of Object.keys(fileCacheRef.current)) {
+        if (isWithin(key, path)) {
+          delete fileCacheRef.current[key];
+        }
+      }
+
       if (isWithin(currentFileRef.current, path)) {
         setCurrentFile(UNTITLED_FILE);
-        setValue("");
+        setValue(fileCacheRef.current[UNTITLED_FILE] || "");
       }
     },
     [refreshFolder]
